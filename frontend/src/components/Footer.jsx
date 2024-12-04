@@ -7,7 +7,7 @@ const Footer = () => {
       <div className='flex flex-col sm:grid grid-cols-[3fr_1fr_1fr] gap-14 my-10  mt-40 text-sm'>
 
         <div>
-        <p className='text-xl font-medium mb-5'>Hospital Management System</p>
+        <p className='text-xl font-medium mb-5'>Rumah Sakit Olahraga Nasional</p>
           <p className='w-full md:w-2/3 text-gray-600 leading-6'>The primary goals of developing a Hospital Management System (HMS) are to enhance operational efficiency, improve patient care, and reduce administrative workloads.</p>
         </div>
 
