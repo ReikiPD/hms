@@ -1,118 +1,151 @@
-import React, { useEffect, useState, useContext } from 'react';
-import { AppContext } from '../../context/AppContext';
-import axios from 'axios';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 
 const DoctorChat = ({ doctorId }) => {
-    const { token, userData } = useContext(AppContext);
-    const [messages, setMessages] = useState([]);
-    const [message, setMessage] = useState('');
+  const [patients, setPatients] = useState([]);
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+
+  // Fetch patient list when the component loads
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const response = await axios.post("/api/getPatients", {
+          doctorId,
+        });
+
+        if (response.data.success) {
+          setPatients(response.data.patients);
+        } else {
+          console.error(response.data.message);
+        }
+      } catch (error) {
+        console.error("Error fetching patients:", error);
+      }
+    };
+
+    fetchPatients();
+  }, [doctorId]);
+
+  // Fetch messages for the selected patient
+  useEffect(() => {
+    if (!selectedPatientId) return;
 
     const fetchMessages = async () => {
-        try {
-            const { data } = await axios.post('/api/doctor/get-messages', { doctorId }, { headers: { token } });
-            if (data.success) {
-                setMessages(data.messages);
-            } else {
-                toast.error(data.message);
-            }
-        } catch (error) {
-            console.log(error);
-            toast.error(error.message);
+      try {
+        const response = await axios.post("/api/getMessages", {
+          userId: selectedPatientId,
+          doctorId,
+        });
+
+        if (response.data.success) {
+          setMessages(response.data.messages);
+        } else {
+          console.error(response.data.message);
         }
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      }
     };
 
-    const sendMessage = async () => {
-        if (!message) return;
+    fetchMessages();
+  }, [doctorId, selectedPatientId]);
 
-        try {
-            const { data } = await axios.post('/api/doctor/send-message', { senderId: doctorId, message }, { headers: { token } });
-            if (data.success) {
-                setMessages((prev) => [...prev, data.chat]);
-                setMessage('');
-            } else {
-                toast.error(data.message);
-            }
-        } catch (error) {
-            console.log(error);
-            toast.error(error.message);
-        }
-    };
+  // Handle sending a new message
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedPatientId) return;
 
-    useEffect(() => {
-        fetchMessages();
-    }, [doctorId]);
+    try {
+      const response = await axios.post("/api/sendMessage", {
+        senderId: doctorId,
+        receiverId: selectedPatientId,
+        message: newMessage,
+      });
 
-    return (
-        <div style={styles.chatContainer}>
-            <div style={styles.messages}>
-                {messages.map((msg, index) => (
-                    <div key={index} style={{ ...styles.message, ...(msg.senderId === doctorId ? styles.sent : styles.received) }}>
-                        <p>{msg.message}</p>
-                    </div>
-                ))}
-            </div>
-            <div style={styles.chatInput}>
-                <input
-                    type="text"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    style={styles.input}
-                />
-                <button onClick={sendMessage} style={styles.button}>Send</button>
-            </div>
+      if (response.data.success) {
+        setMessages((prevMessages) => [...prevMessages, response.data.chat]);
+        setNewMessage("");
+      } else {
+        console.error(response.data.message);
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+
+  return (
+    <div className="flex h-screen">
+      {/* Patient List */}
+      <div className="w-1/3 border-r border-gray-300 overflow-y-auto">
+        <div className="bg-primary text-white py-2 px-4 text-center font-bold">
+          Patients
         </div>
-    );
-};
+        <ul>
+          {patients.map((patient) => (
+            <li
+              key={patient.id}
+              className={`p-4 cursor-pointer border-b border-gray-300 ${
+                selectedPatientId === patient.id ? "bg-gray-200" : ""
+              }`}
+              onClick={() => setSelectedPatientId(patient.id)}
+            >
+              {patient.name}
+            </li>
+          ))}
+        </ul>
+      </div>
 
-const styles = {
-    chatContainer: {
-        display: 'flex',
-        flexDirection: 'column',
-        border: '1px solid #ccc',
-        padding: '10px',
-        maxHeight: '400px',
-        overflowY: 'auto',
-        marginTop: '20px',
-    },
-    messages: {
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-    },
-    message: {
-        padding: '5px',
-        margin: '5px 0',
-        borderRadius: '5px',
-    },
-    sent: {
-        alignSelf: 'flex-end',
-        backgroundColor: '#5F6FFF',
-        color: 'white',
-    },
-    received: {
-        alignSelf: 'flex-start',
-        backgroundColor: '#f1f1f1',
-    },
-    chatInput: {
-        display: 'flex',
-        gap: '10px',
-    },
-    input: {
-        flex: 1,
-        padding: '10px',
-        border: '1px solid #ccc',
-        borderRadius: '5px',
-    },
-    button: {
-        padding: '10px 20px',
-        backgroundColor: '#5F6FFF',
-        color: 'white',
-        border: 'none',
-        borderRadius: '5px',
-        cursor: 'pointer',
-    },
+      {/* Chat Section */}
+      <div className="flex-1 flex flex-col h-screen">
+        <div className="bg-primary text-white py-2 px-4 text-center font-bold">
+          {selectedPatientId ? "Chat with Patient" : "Select a Patient"}
+        </div>
+
+        {selectedPatientId ? (
+          <>
+            <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+              {messages.map((msg, index) => (
+                <div
+                  key={index}
+                  className={`mb-4 p-3 rounded max-w-2/3 ${
+                    msg.senderId === doctorId
+                      ? "bg-primary text-white self-end"
+                      : "bg-gray-200 text-black self-start"
+                  }`}
+                >
+                  <p>{msg.message}</p>
+                  <span className="block text-xs text-gray-500 mt-1">
+                    {new Date(msg.timestamp).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex p-4 border-t border-gray-300">
+              <input
+                type="text"
+                placeholder="Type your message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                className="flex-1 p-2 border border-gray-300 rounded mr-2"
+              />
+              <button
+                onClick={handleSendMessage}
+                className="px-4 py-2 bg-primary text-white rounded"
+              >
+                Send
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-500">
+            Select a patient to start chatting
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default DoctorChat;
